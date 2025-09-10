@@ -1,0 +1,821 @@
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1927年革命生存游戏 - 第二关</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#D32F2F',
+                        secondary: '#1976D2',
+                        accent: '#00796B',
+                        light: '#F5F7FA',
+                        dark: '#263238',
+                        neutral: '#9CA3AF', // 灰色作为投票时进度条颜色
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 0 8px rgba(211, 47, 47, 0.5);
+            }
+            .glow {
+                box-shadow: 0 0 15px rgba(211, 47, 47, 0.5);
+            }
+            .pulse-slow {
+                animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+            
+            /* 革命红色纹理背景 */
+            .bg-revolution {
+                background-color: #FCF5F5;
+                background-image: 
+                    radial-gradient(#D32F2F15 2px, transparent 2px),
+                    radial-gradient(#D32F2F15 2px, #FCF5F5 2px);
+                background-size: 80px 80px;
+                background-position: 0 0, 40px 40px;
+                position: relative;
+            }
+            
+            .bg-revolution::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d32f2f' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+                pointer-events: none;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .option-hover {
+            transition: all 0.3s ease;
+        }
+        
+        .option-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(211, 47, 47, 0.3);
+        }
+
+        .progress-bar {
+            transition: width 0.5s ease-in-out;
+        }
+        
+        /* 多选框样式 */
+        .custom-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: #00796B;
+            cursor: pointer;
+        }
+        
+        /* 选中选项样式 */
+        .option.selected {
+            border-color: #00796B;
+            background-color: rgba(0, 121, 107, 0.05);
+        }
+
+        /* 结果描述左对齐 */
+        #result-description, #level2-result-description {
+            text-align: left !important;
+        }
+        
+        /* 数字人容器样式 */
+        .digital-human-container {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 177.78%; /* 720:1280 = 9:16 比例 */
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        
+        .digital-human-gif, .digital-human-static {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: opacity 0.5s ease;
+        }
+        
+        .digital-human-static {
+            opacity: 0;
+            z-index: 1;
+        }
+        
+        .digital-human-static.active {
+            opacity: 1;
+        }
+        
+        .digital-human-gif {
+            z-index: 2;
+        }
+        
+        .digital-human-gif.hidden {
+            opacity: 0;
+            z-index: 0;
+        }
+        
+        /* 音频播放提示层 */
+        #audio-prompt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+        
+        #audio-prompt-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="text-dark overflow-x-hidden min-h-screen">
+    <!-- 音频元素 -->
+    <audio id="audio2" preload="none">
+        <source src="https://chatfiles.tydiczt.com/tdh/tmp_tts/7ddc18a49ea342ef88b799feeb977afc.wav" type="audio/wav">
+    </audio>
+    <audio id="audio3" preload="none">
+        <source src="https://chatfiles.tydiczt.com/tdh/tmp_tts/cad6e5531b454ef6805c08902c5c2be6.wav" type="audio/wav">
+    </audio>
+    <audio id="audio5" preload="auto">
+        <source src="https://chatfiles.tydiczt.com/tdh/tmp_tts/782a5ad6984f4f7aac0e9b1f99cb4348.wav" type="audio/wav">
+    </audio>
+
+    <!-- 主容器保持16:9比例 -->
+    <div class="relative w-full max-w-1920 mx-auto" style="padding-bottom: 56.25%;">
+        <div id="main-bg" class="absolute inset-0 bg-revolution overflow-y-auto">
+            <!-- 第一关成功展示页 -->
+            <div id="level1-result-page" class="h-full w-full flex flex-col">
+                <!-- 主要内容区 -->
+                <main class="flex-1 flex flex-col items-center justify-center p-4 md:p-6 text-center overflow-y-auto py-10">
+                    <div id="success-icon" class="text-8xl md:text-9xl text-accent mb-6 md:mb-8">
+                        <i class="fa fa-check-circle pulse-slow"></i>
+                    </div>
+                    
+                    <!-- 标题 -->
+                    <h2 class="text-[clamp(2rem,8vw,3.5rem)] font-bold mb-6 md:mb-10" id="result-heading">恭喜您闯关成功</h2>
+                    
+                    <div class="max-w-2xl mx-auto bg-white border border-primary/30 rounded-lg p-6 md:p-8 mb-6 md:mb-10 shadow-lg">
+                        <!-- 结果描述文本 -->
+                        <p class="text-[clamp(1.1rem,3vw,1.5rem)] leading-relaxed mb-6 md:mb-8" id="result-description">
+                            转战农村，建立农村革命根据地是中国革命的正确道路。这一选择使得革命力量得以保存和发展，为后来的胜利奠定了基础。毛泽东同志领导的秋收起义后向井冈山进军，开创了农村包围城市、武装夺取政权的正确道路。
+                        </p>
+                        
+                        <!-- 投票结果 -->
+                        <div class="mt-6 md:mt-8 p-4 md:p-6 bg-light rounded-lg border border-secondary/20">
+                            <h3 class="text-xl font-bold mb-4 md:mb-5 text-secondary">投票结果</h3>
+                            <p class="text-lg mb-4 md:mb-6" id="user-choice-display">你的选择：B. 转战农村</p>
+                            <div id="user-choice-chart" class="space-y-3 md:space-y-4">
+                                <div>
+                                    <div class="flex justify-between mb-2">
+                                        <span class="font-medium">B. 转战农村</span>
+                                        <span class="font-medium">70%</span>
+                                    </div>
+                                    <div class="h-3 bg-light border border-primary/20 rounded-full overflow-hidden">
+                                        <div class="progress-bar h-full bg-accent" style="width: 70%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 按钮区域 -->
+                    <div class="flex flex-col sm:flex-row gap-4 md:gap-6 mt-2 md:mt-4 mb-8 z-10">
+                        <!-- 通用按钮 -->
+                        <button id="restart-btn" class="bg-primary hover:bg-primary/80 text-white font-bold py-3 px-8 rounded-md transition-all duration-300 glow text-lg min-w-[160px]">
+                            重新开始
+                        </button>
+                        
+                        <!-- 下一关按钮 -->
+                        <button id="next-level-btn" class="bg-accent hover:bg-accent/80 text-white font-bold py-3 px-8 rounded-md transition-all duration-300 text-lg min-w-[160px]">下一关</button>
+                    </div>
+                </main>
+            </div>
+
+            <!-- 第二关页面 -->
+            <div id="level2-page" class="h-full w-full flex flex-col hidden">
+                <!-- 主要内容区 -->
+                <main class="flex-1 p-4 md:p-6 lg:p-10 pb-20 pt-6">
+                    <div class="max-w-4xl mx-auto">
+                        <!-- 关卡标题 -->
+                        <div class="flex items-center gap-3 mb-8 md:mb-12 border-b-2 border-primary/30 pb-4">
+                            <i class="fa fa-flag text-primary text-2xl md:text-3xl"></i>
+                            <h1 class="text-[clamp(1.8rem,5vw,3rem)] font-bold text-primary text-shadow">第二关：克险破局，靠什么？</h1>
+                        </div>
+                        
+                        <p class="text-[clamp(1.1rem,2.5vw,1.5rem)] leading-relaxed mb-6 md:mb-8">
+                            农村革命根据地建立起来了，但是有人怀疑“红旗到底打得多久”。那么，中国共产党应该如何走下去？（多选题）
+                        </p>
+                        
+                        <p class="text-[clamp(1.2rem,3vw,1.7rem)] font-semibold text-primary mb-6 md:mb-10">请选择你的行动方案（多选）：</p>
+                        
+                        <!-- 选项列表 -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8 md:mb-12">
+                            <!-- 选项A -->
+                            <div class="option option-hover bg-white border border-primary/30 rounded-lg p-4 md:p-6 cursor-pointer group shadow-md flex flex-col" data-option="A">
+                                <div class="flex-grow">
+                                    <div class="flex items-center gap-3 mb-3 md:mb-4">
+                                        <input type="checkbox" class="custom-checkbox flex-shrink-0" id="optionA">
+                                        <div class="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary flex items-center justify-center font-bold text-lg md:text-xl text-white">A</div>
+                                        <h3 class="text-xl md:text-2xl font-bold">说服地主乡绅支持我们</h3>
+                                    </div>
+                                </div>
+                                <div class="mt-4 h-2 bg-light/70 rounded-full overflow-hidden">
+                                    <div class="option-progress progress-bar h-full bg-neutral" data-option="A" style="width: 0%"></div>
+                                </div>
+                                <div class="mt-2 text-right text-sm text-dark/60 option-percent" data-option="A">0%</div>
+                            </div>
+                            
+                            <!-- 选项B -->
+                            <div class="option option-hover bg-white border border-primary/30 rounded-lg p-4 md:p-6 cursor-pointer group shadow-md flex flex-col" data-option="B">
+                                <div class="flex-grow">
+                                    <div class="flex items-center gap-3 mb-3 md:mb-4">
+                                        <input type="checkbox" class="custom-checkbox flex-shrink-0" id="optionB">
+                                        <div class="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary flex items-center justify-center font-bold text-lg md:text-xl text-white">B</div>
+                                        <h3 class="text-xl md:text-2xl font-bold">组建赤卫队，武装保卫村子</h3>
+                                    </div>
+                                </div>
+                                <div class="mt-4 h-2 bg-light/70 rounded-full overflow-hidden">
+                                    <div class="option-progress progress-bar h-full bg-neutral" data-option="B" style="width: 0%"></div>
+                                </div>
+                                <div class="mt-2 text-right text-sm text-dark/60 option-percent" data-option="B">0%</div>
+                            </div>
+                            
+                            <!-- 选项C -->
+                            <div class="option option-hover bg-white border border-primary/30 rounded-lg p-4 md:p-6 cursor-pointer group shadow-md flex flex-col" data-option="C">
+                                <div class="flex-grow">
+                                    <div class="flex items-center gap-3 mb-3 md:mb-4">
+                                        <input type="checkbox" class="custom-checkbox flex-shrink-0" id="optionC">
+                                        <div class="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary flex items-center justify-center font-bold text-lg md:text-xl text-white">C</div>
+                                        <h3 class="text-xl md:text-2xl font-bold">教育思想不坚定的党员</h3>
+                                    </div>
+                                </div>
+                                <div class="mt-4 h-2 bg-light/70 rounded-full overflow-hidden">
+                                    <div class="option-progress progress-bar h-full bg-neutral" data-option="C" style="width: 0%"></div>
+                                </div>
+                                <div class="mt-2 text-right text-sm text-dark/60 option-percent" data-option="C">0%</div>
+                            </div>
+                            
+                            <!-- 选项D -->
+                            <div class="option option-hover bg-white border border-primary/30 rounded-lg p-4 md:p-6 cursor-pointer group shadow-md flex flex-col" data-option="D">
+                                <div class="flex-grow">
+                                    <div class="flex items-center gap-3 mb-3 md:mb-4">
+                                        <input type="checkbox" class="custom-checkbox flex-shrink-0" id="optionD">
+                                        <div class="flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary flex items-center justify-center font-bold text-lg md:text-xl text-white">D</div>
+                                        <h3 class="text-xl md:text-2xl font-bold">组织工人罢工，试图在城市恢复革命力量</h3>
+                                    </div>
+                                </div>
+                                <div class="mt-4 h-2 bg-light/70 rounded-full overflow-hidden">
+                                    <div class="option-progress progress-bar h-full bg-neutral" data-option="D" style="width: 0%"></div>
+                                </div>
+                                <div class="mt-2 text-right text-sm text-dark/60 option-percent" data-option="D">0%</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 确认选择和投票按钮区域 -->
+                        <div class="text-center">
+                            <button id="confirm-choice-btn" class="bg-secondary hover:bg-secondary/80 text-white font-bold py-3 px-10 rounded-md transition-all duration-300 text-lg flex items-center gap-2 mx-auto mb-6">
+                                <i class="fa fa-check"></i>
+                                <span>确认选择</span>
+                            </button>
+                            
+                            <button id="vote-btn" class="bg-primary hover:bg-primary/80 text-white font-bold py-3 px-10 rounded-md transition-all duration-300 glow text-lg flex items-center gap-2 mx-auto mb-6">
+                                <i class="fa fa-bar-chart"></i>
+                                <span>开始投票</span>
+                            </button>
+                            
+                            <!-- 投票进度 -->
+                            <div id="vote-progress-container" class="mt-6 w-full max-w-2xl mx-auto hidden">
+                                <div class="flex justify-between mb-2">
+                                    <span class="font-medium">投票进行中（可随时选择答案）</span>
+                                </div>
+                                <div class="h-3 bg-light border border-primary/20 rounded-full overflow-hidden">
+                                    <div id="vote-progress-bar" class="progress-bar h-full bg-primary" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+
+                <!-- 底部状态栏 -->
+                <footer class="bg-white/80 backdrop-blur-sm border-t border-primary/30 py-2 px-4 md:py-3 md:px-6 text-sm text-dark/60 flex justify-between sticky bottom-0 z-10">
+                    <button id="back-btn" class="hover:text-primary transition-colors">
+                        <i class="fa fa-arrow-left mr-1"></i> 返回
+                    </button>
+                    <div>第二关 / 共2关</div>
+                </footer>
+            </div>
+
+            <!-- 第二关结果页面 -->
+            <div id="level2-result-page" class="h-full w-full flex flex-col hidden">
+                <!-- 主要内容区 -->
+                <main class="flex-1 flex flex-col items-center justify-center p-4 md:p-6 text-center overflow-y-auto py-10">
+                    <div id="level2-success-icon" class="text-8xl md:text-9xl text-accent mb-6 md:mb-8 hidden">
+                        <i class="fa fa-check-circle pulse-slow"></i>
+                    </div>
+                    <div id="level2-fail-icon" class="text-8xl md:text-9xl text-primary mb-6 md:mb-8 hidden">
+                        <i class="fa fa-times-circle pulse-slow"></i>
+                    </div>
+                    
+                    <!-- 标题 -->
+                    <h2 class="text-[clamp(2rem,8vw,3.5rem)] font-bold mb-6 md:mb-10" id="level2-result-heading"></h2>
+                    
+                    <div class="max-w-2xl mx-auto bg-white border border-primary/30 rounded-lg p-6 md:p-8 mb-6 md:mb-10 shadow-lg">
+                        <!-- 结果描述文本 -->
+                        <p class="text-[clamp(1.1rem,3vw,1.5rem)] leading-relaxed mb-6 md:mb-8" id="level2-result-description"></p>
+                        
+                        <!-- 投票结果 -->
+                        <div class="mt-6 md:mt-8 p-4 md:p-6 bg-light rounded-lg border border-secondary/20">
+                            <h3 class="text-xl font-bold mb-4 md:mb-5 text-secondary">综合选择结果</h3>
+                            <p class="text-lg mb-4 md:mb-6" id="level2-user-choice-display"></p>
+                            <div id="level2-user-choice-chart" class="space-y-3 md:space-y-4">
+                                <!-- 动态显示综合进度条 -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 按钮区域 -->
+                    <div class="flex flex-col sm:flex-row gap-4 md:gap-6 mt-2 md:mt-4 mb-8 z-10">
+                        <!-- 通用按钮 -->
+                        <button id="level2-restart-btn" class="bg-primary hover:bg-primary/80 text-white font-bold py-3 px-8 rounded-md transition-all duration-300 glow text-lg min-w-[160px]">
+                            重新开始
+                        </button>
+                        
+                        <!-- 成功时显示 -->
+                        <button id="complete-btn" class="bg-accent hover:bg-accent/80 text-white font-bold py-3 px-8 rounded-md transition-all duration-300 text-lg min-w-[160px] hidden">完成闯关</button>
+                        
+                        <!-- 失败时显示 -->
+                        <button id="level2-return-btn" class="bg-secondary hover:bg-secondary/80 text-white font-bold py-3 px-8 rounded-md transition-all duration-300 text-lg min-w-[160px] hidden">
+                            <i class="fa fa-arrow-left mr-1"></i> 返回关卡
+                        </button>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 页面加载完成后初始化 - 移除了自动播放音频的代码
+        document.addEventListener('DOMContentLoaded', function() {
+            // 页面加载时不自动播放任何音频
+        });
+
+        // 页面元素
+        const level1ResultPage = document.getElementById('level1-result-page');
+        const level2Page = document.getElementById('level2-page');
+        const level2ResultPage = document.getElementById('level2-result-page');
+        const nextLevelBtn = document.getElementById('next-level-btn');
+        const backBtn = document.getElementById('back-btn');
+        const voteBtn = document.getElementById('vote-btn');
+        const confirmChoiceBtn = document.getElementById('confirm-choice-btn');
+        const voteProgressContainer = document.getElementById('vote-progress-container');
+        const voteProgressBar = document.getElementById('vote-progress-bar');
+        const options = document.querySelectorAll('.option');
+        const optionProgress = document.querySelectorAll('.option-progress');
+        const optionPercent = document.querySelectorAll('.option-percent');
+        const checkboxes = document.querySelectorAll('.custom-checkbox');
+        
+        // 结果页面元素
+        const resultHeading = document.getElementById('result-heading');
+        const resultDescription = document.getElementById('result-description');
+        const userChoiceDisplay = document.getElementById('user-choice-display');
+        const userChoiceChart = document.getElementById('user-choice-chart');
+        const successIcon = document.getElementById('success-icon');
+        const failIcon = document.getElementById('fail-icon');
+        const restartBtn = document.getElementById('restart-btn');
+        
+        // 第二关结果页面元素
+        const level2ResultHeading = document.getElementById('level2-result-heading');
+        const level2ResultDescription = document.getElementById('level2-result-description');
+        const level2UserChoiceDisplay = document.getElementById('level2-user-choice-display');
+        const level2UserChoiceChart = document.getElementById('level2-user-choice-chart');
+        const level2SuccessIcon = document.getElementById('level2-success-icon');
+        const level2FailIcon = document.getElementById('level2-fail-icon');
+        const level2RestartBtn = document.getElementById('level2-restart-btn');
+        const completeBtn = document.getElementById('complete-btn');
+        const level2ReturnBtn = document.getElementById('level2-return-btn');
+        
+        // 音频元素
+        const audio2 = document.getElementById('audio2');
+        const audio3 = document.getElementById('audio3');
+        const audio5 = document.getElementById('audio5');
+        
+        // 标记是否已经播放过第二关语音
+        let hasPlayedLevel2Audio = false;
+        
+        // 投票数据 - 第二关投票比例：A 60%，B 70%，C 70%，D 30%
+        let voteData = {
+            A: 60,
+            B: 70,
+            C: 70,
+            D: 30,
+            total: 230 // 总和用于计算百分比
+        };
+        
+        // 选中的选项（多选）
+        let selectedOptions = [];
+        
+        // 计时器变量
+        let voteInterval;
+        let voteSeconds = 0;
+        const totalVotingTime = 5; // 投票时间为5秒
+        let isVoting = false;
+        
+        // 播放音频函数 - 修改为不显示错误提示
+        function playAudio(audioElement) {
+            // 停止所有正在播放的音频
+            audio2.pause();
+            audio2.currentTime = 0;
+            audio3.pause();
+            audio3.currentTime = 0;
+            audio5.pause();
+            audio5.currentTime = 0;
+            
+            // 播放指定音频，不显示错误提示
+            return audioElement.play().then(() => {
+                console.log("音频播放成功");
+                return true;
+            }).catch(error => {
+                console.log("音频播放失败:", error);
+                // 移除了错误提示弹窗
+                return false;
+            });
+        }
+        
+        // 前往第二关
+        nextLevelBtn.addEventListener('click', async () => {
+            level1ResultPage.classList.add('hidden');
+            level2Page.classList.remove('hidden');
+            
+            // 只在第一次进入第二关时播放音频
+            if (!hasPlayedLevel2Audio) {
+                await playAudio(audio5);
+                hasPlayedLevel2Audio = true;
+            }
+        });
+        
+        // 返回上一页
+        backBtn.addEventListener('click', () => {
+            // 停止投票
+            if (isVoting) {
+                clearInterval(voteInterval);
+                isVoting = false;
+            }
+            
+            // 停止所有音频
+            audio2.pause();
+            audio3.pause();
+            audio5.pause();
+            
+            level2Page.classList.add('hidden');
+            level1ResultPage.classList.remove('hidden');
+            resetVotingState();
+        });
+        
+        // 选项点击选择（多选）
+        options.forEach(option => {
+            // 点击选项本身
+            option.addEventListener('click', (e) => {
+                // 如果点击的是复选框，不触发此事件
+                if (e.target.type !== 'checkbox') {
+                    const optionValue = option.getAttribute('data-option');
+                    const checkbox = document.getElementById(`option${optionValue}`);
+                    
+                    // 切换选中状态
+                    checkbox.checked = !checkbox.checked;
+                    updateSelectedOptions();
+                }
+            });
+        });
+        
+        // 复选框变化事件
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSelectedOptions);
+        });
+        
+        // 更新选中的选项
+        function updateSelectedOptions() {
+            selectedOptions = [];
+            
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    const optionValue = checkbox.id.replace('option', '');
+                    selectedOptions.push(optionValue);
+                }
+            });
+            
+            // 更新选项样式
+            options.forEach(option => {
+                const optionValue = option.getAttribute('data-option');
+                if (selectedOptions.includes(optionValue)) {
+                    option.classList.add('selected', 'border-accent');
+                    option.classList.remove('border-primary/30');
+                } else {
+                    option.classList.remove('selected', 'border-accent');
+                    option.classList.add('border-primary/30');
+                }
+            });
+        }
+        
+        // 确认选择按钮
+        confirmChoiceBtn.addEventListener('click', () => {
+            if (selectedOptions.length === 0) {
+                alert('请至少选择一个选项');
+                return;
+            }
+            
+            showLevel2Result();
+        });
+        
+        // 开始投票
+        voteBtn.addEventListener('click', () => {
+            // 隐藏投票按钮，显示进度条
+            voteBtn.classList.add('hidden');
+            confirmChoiceBtn.classList.add('hidden');
+            voteProgressContainer.classList.remove('hidden');
+            
+            // 重置投票显示
+            Object.keys(voteData).forEach(option => {
+                if (option !== 'total') {
+                    document.querySelector(`.option-progress[data-option="${option}"]`).style.width = '0%';
+                    document.querySelector(`.option-percent[data-option="${option}"]`).textContent = '0%';
+                }
+            });
+            
+            isVoting = true;
+            
+            // 开始模拟投票
+            startVotingSimulation();
+        });
+        
+        // 模拟投票过程
+        function startVotingSimulation() {
+            // 重置计时器
+            voteSeconds = 0;
+            clearInterval(voteInterval);
+            
+            // 每100毫秒更新一次
+            voteInterval = setInterval(() => {
+                // 增加时间
+                voteSeconds += 0.1;
+                
+                // 计算当前进度百分比
+                const progress = (voteSeconds / totalVotingTime) * 100;
+                voteProgressBar.style.width = `${progress}%`;
+                
+                // 计算当前应该显示的投票比例
+                const currentPercent = Math.min(100, Math.round(progress));
+                
+                // 按比例更新投票数据
+                voteData.A = Math.round(60 * currentPercent / 100);
+                voteData.B = Math.round(70 * currentPercent / 100);
+                voteData.C = Math.round(70 * currentPercent / 100);
+                voteData.D = Math.round(30 * currentPercent / 100);
+                voteData.total = voteData.A + voteData.B + voteData.C + voteData.D;
+                
+                // 更新显示
+                updateVoteDisplay();
+                
+                // 投票结束
+                if (voteSeconds >= totalVotingTime) {
+                    clearInterval(voteInterval);
+                    isVoting = false;
+                    
+                    // 确保最终显示正确比例
+                    voteData.A = 60;
+                    voteData.B = 70;
+                    voteData.C = 70;
+                    voteData.D = 30;
+                    voteData.total = 230;
+                    updateVoteDisplay();
+                    
+                    // 如果没有选择任何选项，自动选择投票最高的三个选项
+                    // if (selectedOptions.length === 0) {
+                    //     // 按投票比例排序，取前三名
+                    //     const sortedOptions = Object.keys(voteData)
+                    //         .filter(option => option !== 'total')
+                    //         .sort((a, b) => voteData[b] - voteData[a])
+                    //         .slice(0, 3);
+                        
+                    //     selectedOptions = sortedOptions;
+                        
+                    //     // 更新复选框状态
+                    //     checkboxes.forEach(checkbox => {
+                    //         const optionValue = checkbox.id.replace('option', '');
+                    //         checkbox.checked = selectedOptions.includes(optionValue);
+                    //     });
+                        
+                    //     // 更新选项样式
+                    //     updateSelectedOptions();
+                    // }
+                    
+                    // 显示确认选择按钮
+                    confirmChoiceBtn.classList.remove('hidden');
+                }
+            }, 100);
+        }
+        
+        // 更新投票显示
+        function updateVoteDisplay() {
+            // 更新每个选项的进度
+            for (const option in voteData) {
+                if (option !== 'total') {
+                    const percent = voteData[option]; // 直接使用百分比值
+                    document.querySelector(`.option-progress[data-option="${option}"]`).style.width = `${percent}%`;
+                    document.querySelector(`.option-percent[data-option="${option}"]`).textContent = `${percent}%`;
+                }
+            }
+        }
+        
+        // 生成指定范围内的随机整数
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        
+        // 显示第二关结果
+        function showLevel2Result() {
+            // 停止所有音频
+            audio5.pause();
+            
+            // 如果正在投票，停止投票
+            if (isVoting) {
+                clearInterval(voteInterval);
+                isVoting = false;
+            }
+            
+            // 重置按钮显示状态
+            completeBtn.classList.add('hidden');
+            level2ReturnBtn.classList.add('hidden');
+            level2SuccessIcon.classList.add('hidden');
+            level2FailIcon.classList.add('hidden');
+            
+            // 获取用户选择的文本
+            let choicesText = [];
+            const optionTexts = {
+                'A': 'A. 说服地主乡绅支持我们',
+                'B': 'B. 组建赤卫队，武装保卫村子',
+                'C': 'C. 教育思想不坚定的党员',
+                'D': 'D. 组织工人罢工，试图在城市恢复革命力量'
+            };
+            
+            selectedOptions.forEach(option => {
+                choicesText.push(optionTexts[option]);
+            });
+            
+            // 显示用户选择的结果
+            level2UserChoiceDisplay.textContent = `你的选择：${choicesText.join('、')}`;
+            
+            // 判断是否选择了ABC（正确答案）
+            const isSuccess = selectedOptions.length === 3 && 
+                             selectedOptions.includes('A') && 
+                             selectedOptions.includes('B') && 
+                             selectedOptions.includes('C') &&
+                             !selectedOptions.includes('D');
+            
+            // 生成随机百分比
+            let percentage, progressColor;
+            if (isSuccess) {
+                percentage = getRandomInt(40, 45);
+                progressColor = 'bg-accent';
+            } else {
+                percentage = getRandomInt(30, 35);
+                progressColor = 'bg-primary';
+            }
+            
+            // 构建单一进度条
+            let chartHtml = `
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <span class="font-medium">综合选择结果</span>
+                        <span class="font-medium">${percentage}%</span>
+                    </div>
+                    <div class="h-3 bg-light border border-primary/20 rounded-full overflow-hidden">
+                        <div class="progress-bar h-full ${progressColor}" style="width: ${percentage}%"></div>
+                    </div>
+                </div>
+            `;
+            
+            level2UserChoiceChart.innerHTML = chartHtml;
+            
+            // 根据用户选择显示不同结果
+            if (isSuccess) {
+                // 成功 - 触发语音2
+                level2ResultHeading.textContent = "恭喜您闯关成功";
+                level2ResultDescription.textContent = "在农村革命根据地时期，争取乡村力量、建立武装和加强思想建设是巩固根据地的重要举措。这些措施帮助中国共产党在艰难环境中站稳脚跟，为革命的发展奠定了基础。";
+                level2SuccessIcon.classList.remove('hidden');
+                completeBtn.classList.remove('hidden');
+                playAudio(audio2); // 闯关成功触发语音
+            } else {
+                // 失败 - 触发语音3
+                level2ResultHeading.textContent = "闯关失败";
+                level2ResultDescription.textContent = "在农村革命根据地建设中，我们需要争取乡村支持、建立自己的武装并加强党内思想教育。同时，此时不应将主要精力放回城市，而应巩固农村根据地。这些选择反映了中国革命道路的重要探索。";
+                level2FailIcon.classList.remove('hidden');
+                level2ReturnBtn.classList.remove('hidden');
+                playAudio(audio3); // 闯关失败触发语音
+            }
+            
+            // 切换到结果页面
+            level2Page.classList.add('hidden');
+            level2ResultPage.classList.remove('hidden');
+        }
+        
+        // 返回关卡按钮事件
+        level2ReturnBtn.addEventListener('click', () => {
+            // 停止所有音频
+            audio3.pause();
+            
+            // 返回第二关，不重新播放音频
+            level2ResultPage.classList.add('hidden');
+            level2Page.classList.remove('hidden');
+            resetVotingState();
+        });
+        
+        // 重置投票状态
+        function resetVotingState() {
+            // 重置投票进度
+            voteProgressContainer.classList.add('hidden');
+            voteProgressBar.style.width = '0%';
+            
+            // 重置选项进度
+            document.querySelectorAll('.option-progress').forEach(progress => {
+                progress.style.width = '0%';
+            });
+            
+            document.querySelectorAll('.option-percent').forEach(percent => {
+                percent.textContent = '0%';
+            });
+            
+            // 重置按钮显示
+            voteBtn.classList.remove('hidden');
+            confirmChoiceBtn.classList.remove('hidden');
+            
+            // 清除选择
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            selectedOptions = [];
+            updateSelectedOptions();
+        }
+        
+        // 其他按钮事件
+        completeBtn.addEventListener('click', () => {
+            // 完成闯关，这里可以添加完成后的逻辑
+            alert('恭喜您完成所有关卡！');
+        });
+        
+        level2RestartBtn.addEventListener('click', () => {
+            // 重新开始游戏
+            level2ResultPage.classList.add('hidden');
+            level1ResultPage.classList.remove('hidden');
+            resetVotingState();
+            hasPlayedLevel2Audio = false; // 重置音频播放标记
+        });
+        
+        restartBtn.addEventListener('click', () => {
+            // 重新开始游戏
+            resetVotingState();
+            hasPlayedLevel2Audio = false; // 重置音频播放标记
+        });
+    </script>
+</body>
+</html>
+
